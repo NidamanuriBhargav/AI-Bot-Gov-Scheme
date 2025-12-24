@@ -163,17 +163,29 @@ def load_data():
 # --- 3. VOICE FUNCTION ---
 def recognize_speech(language):
     r = sr.Recognizer()
-    with sr.Microphone() as source:
-        placeholder = st.empty()
-        placeholder.info("🎧 Listening... Speak now!")
-        try:
+    try:
+        # This will fail on Streamlit Cloud (No Hardware)
+        with sr.Microphone() as source:
+            placeholder = st.empty()
+            placeholder.info("🎧 Listening... Speak now!")
+            
+            # Adjust for ambient noise helps if mic is noisy
+            r.adjust_for_ambient_noise(source, duration=0.5)
+            
             audio = r.listen(source, timeout=3, phrase_time_limit=3)
             text = r.recognize_google(audio)
             placeholder.empty()
             return text
-        except:
-            placeholder.empty()
-            return None
+            
+    except OSError:
+        # This catches the "No Default Input Device" error on the Cloud
+        return "ERROR: NO_MIC"
+    except sr.WaitTimeoutError:
+        return None
+    except sr.UnknownValueError:
+        return None
+    except:
+        return None
 
 # --- 4. SEARCH LOGIC ---
 def find_scheme(category, query, df):
@@ -248,12 +260,15 @@ def main():
         with st.container():
             if st.button(t["voice_btn"]):
                 voice_text = recognize_speech(lang)
-                if voice_text:
+                
+                if voice_text == "ERROR: NO_MIC":
+                    # Show a friendly warning instead of crashing
+                    st.warning("⚠️ Voice unavailable on Cloud Demo. Please run locally for voice features.")
+                elif voice_text:
                     st.session_state.voice_query = voice_text
                     st.rerun() 
                 else:
                     st.toast(t["voice_error"])
-
     # 3. Results Area
     if st.button(t["search_btn"], use_container_width=True):
         matches = find_scheme(category, user_query, df)
