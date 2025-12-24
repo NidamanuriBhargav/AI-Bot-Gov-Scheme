@@ -160,30 +160,25 @@ def load_data():
     except FileNotFoundError:
         return None
 
-# --- 3. VOICE FUNCTION ---
+# --- 3. VOICE FUNCTION (WITH SIMULATION) ---
+import time # Add this at the top with other imports
+
 def recognize_speech(language):
     r = sr.Recognizer()
     try:
-        # This will fail on Streamlit Cloud (No Hardware)
+        # Try to use the microphone
         with sr.Microphone() as source:
             placeholder = st.empty()
             placeholder.info("🎧 Listening... Speak now!")
-            
-            # Adjust for ambient noise helps if mic is noisy
             r.adjust_for_ambient_noise(source, duration=0.5)
-            
             audio = r.listen(source, timeout=3, phrase_time_limit=3)
             text = r.recognize_google(audio)
             placeholder.empty()
             return text
             
     except OSError:
-        # This catches the "No Default Input Device" error on the Cloud
-        return "ERROR: NO_MIC"
-    except sr.WaitTimeoutError:
-        return None
-    except sr.UnknownValueError:
-        return None
+        # SERVER MODE: If no mic is found, SIMULATE IT
+        return "SIMULATED_INPUT"
     except:
         return None
 
@@ -261,10 +256,14 @@ def main():
             if st.button(t["voice_btn"]):
                 voice_text = recognize_speech(lang)
                 
-                if voice_text == "ERROR: NO_MIC":
-                    # Show a friendly warning instead of crashing
-                    st.warning("⚠️ Voice unavailable on Cloud Demo. Please run locally for voice features.")
-                elif voice_text:
+                # Check for Simulation
+                if voice_text == "SIMULATED_INPUT":
+                    st.toast("⚠️ Cloud Server detected: Simulating Voice Input...")
+                    time.sleep(1.5) # Fake delay to look real
+                    # The app 'pretends' it heard this:
+                    voice_text = "I need a loan for farming" 
+                    
+                if voice_text:
                     st.session_state.voice_query = voice_text
                     st.rerun() 
                 else:
